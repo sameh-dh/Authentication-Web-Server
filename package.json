@@ -1,0 +1,29 @@
+{
+  "name": "rbktn12-mvp-starter",
+  "version": "1.0.0",
+  "description": "You have 36 hours to produce something compelling using the skills you've honed over the past five weeks.",
+  "main": "index.js",
+  "scripts": {
+    "start": "nodemon server/index.js",
+    "react-dev": "webpack --config ./webpack.config.js --mode development"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RBK-Tunisia/rbktn12-mvp-starter.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/RBK-Tunisia/rbktn12-mvp-starter/issues"
+  },
+  "homepage": "https://github.com/RBK-Tunisia/rbktn12-mvp-starter#readme",
+  "dependencies": {
+    "bcrypt": "^5.1.0",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.17.1",
+    "jsonwebtoken": "^9.0.1",
+    "mysql2": "^2.2.5"
+  }
+}
