@@ -8,7 +8,7 @@ var connection = mysql.createPool({
   password: process.env.MYSQL_PASSWORD || "RXAYxJMEpreGnt1ymdrQ",
   database: process.env.MYSQL_DATABASE || "railway",
   charset: "cp1256",
-  port: process.env.DB_PORT || 6470,
+  port: 6470,
 });
 connection.getConnection((err, success) => {
   if (err) {
