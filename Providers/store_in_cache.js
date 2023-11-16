@@ -1,10 +1,10 @@
 const crypto = require('crypto');
 const NodeCache = require("node-cache");
-const Cache = new NodeCache({ stdTTL: 10, checkperiod: 10 });
+const Cache = new NodeCache({  });
 
 const secretKey = crypto.randomBytes(32); // 256 bits for AES-256
 const iv = crypto.randomBytes(16); // 128 bits for AES
-
+require("dotenv").config();
 const encrypt = (text) => {
     const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(secretKey), iv);
     let encrypted = cipher.update(text, 'utf-8', 'hex');
@@ -23,14 +23,11 @@ const storeVerificationCode = (email, code) => {
     const hashed_code = encrypt(code)
     obj = { "email": email, "hashed_code": hashed_code };
     Cache.set("data", obj);
-    // console.log(Cache.set("myKey", obj))
 }
 
-const retrieveVerificationCode = () => {
+const retrieveVerificationCode = () => {         
 
-    //shpould fix
     const data = Cache.get("data")
-
     if (!data) {
         return null
     } else {

@@ -1,6 +1,6 @@
 const rateLimit = require('express-rate-limit');
 const requestIp = require('request-ip');
-
+require("dotenv").config();
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 5,

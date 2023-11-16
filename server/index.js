@@ -1,5 +1,6 @@
 const authentication = require("./src/authentication/authentication.routes")
 const profile = require("./src/Porfile/profile.routes")
+const sendmail = require('./src/Template/email.routes')
 const express = require("express");
 const cors = require("cors")
 const session = require('express-session');
@@ -9,7 +10,8 @@ const PORT = process.env.PORT || 3005;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors({ origin: "*" }))
+app.use(cors({ origin: "*" ,credentials: true
+}))
 const cookie = require("cookie-parser");
 app.use(cookie());
 
@@ -25,6 +27,7 @@ app.use(session({
 
 app.use("/authentication", authentication);
 app.use("/profile", profile);
+app.use("/sendMail", sendmail);
 
 app.get("/", (req, res) => {
   res.send({ msg: "etafakna web server working.." });

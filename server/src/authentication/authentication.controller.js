@@ -3,19 +3,28 @@ const {
   getUserByEmailAndPasswordService,
   email_check,
   updateUserStatus,
-  checkUserStatus
+  checkUserStatus,
+  updatePasswordService
 } = require("../user/user.service");
+
 const { generateToken } = require("./authentication.service");
-const bcrypt = require("bcrypt");
+
+const bcrypt = require("bcryptjs");
+
 const jwt = require("jsonwebtoken");
+
 const transporter = require("../../../Providers/Nodemailer");
+require("dotenv").config();
 const {
   generateVerificationCode,
 } = require("../../../Providers/generate_code_reset_password");
+
 const {
   storeVerificationCode,
   retrieveVerificationCode,
 } = require("../../../Providers/store_in_cache");
+
+const {setCache , getCache} = require ('../../../Providers/setCache');
 
 const registerController = async (req, res) => {
   try {
@@ -50,10 +59,6 @@ const registerController = async (req, res) => {
               .status(200)
               .json({ message: "No user were registred.", ok: false });
           } else {
-            // const token = generateToken({
-            //   id: hashpassword[0].idUser,
-            //   email: hashpassword[0].email,
-            // }, '1d');
             await sending_verif_email(email);
             res
               .status(200)
@@ -82,16 +87,14 @@ const registerController = async (req, res) => {
             },
             "1d"
           );
-          console.log(token);
+          setCache('token',token);
         } catch (error) {
           res.send({ error: error?.message ? error.message : error });
-          // return res.json({ error: error?.message ? error.message : error });
         }
       });
     });
   } catch (error) {
     res.send({ error: error?.message ? error.message : error });
-    // return res.json({ error: error?.message ? error.message : error });
   }
 };
 
@@ -112,7 +115,7 @@ const loginController = async (req, res) => {
             try {
               const result = await checkUserStatus(email)
               if (result.length) {
-                console.log(result)
+                // console.log(result)
                 const token = generateToken({
                   id: hashpassword[0].idUser,
                   email: hashpassword[0].email,
@@ -137,15 +140,14 @@ const loginController = async (req, res) => {
                     token,
                     refreshtoken,
                   });
-                console.log(token);
               } else {
-                res.status(403).json({
+                res.status(200).json({
                   message: "account not verified/activated",
                   ok: false,
                 });
               }
             } catch (err) {
-              console.log(err)
+              console.error(err)
             }
           } else {
             res.status(200).json({
@@ -164,11 +166,11 @@ const loginController = async (req, res) => {
 
 const sending_verif_email = async (toEmail) => {
   try {
-    const token = jwt.sign({ email: toEmail }, process.env.JWT_SECRET, {
+    const token = jwt.sign({ email: toEmail }, "f34f714b45834e9586924c764354e1235f6789ab0cd1ef20314567890abcdef", {
       expiresIn: "15m",
     });
 
-    const verificationLink = `http://localhost:5173/logIn/verify?token=${token}`;
+    const verificationLink = `http://localhost:5173/signIn/verify?token=${token}`;
 
     const mailOptions = {
       from: "no-reply@e-tafakna.com",
@@ -178,7 +180,6 @@ const sending_verif_email = async (toEmail) => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log(`Verification email sent: ${info.response}`);
     return info;
   } catch (error) {
     console.error(`Error sending verification email: ${error.message}`);
@@ -187,9 +188,8 @@ const sending_verif_email = async (toEmail) => {
 
 const verify_email = async (req, res) => {
   const { token } = req.query;
-  console.log(token);
   const { actual_email } = req.body;
-  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+  jwt.verify(token, "f34f714b45834e9586924c764354e1235f6789ab0cd1ef20314567890abcdef", async (err, decoded) => {
     if (err) {
       console.error(`JWT verification failed: ${err.message}`);
       return res
@@ -203,22 +203,28 @@ const verify_email = async (req, res) => {
       console.error("Email in token does not match the user's actual email");
       return res.status(400).json({ ok: false, message: "Email mismatch" });
     }
-    res.status(200).json({ ok: true, message: "Email verified successfully" });
-    // send request to activate the user account / status : activated
-    updateUserStatus(userActualEmail)
-      .then((res) => console.log("---------> account activated", res))
-      .catch((err) => console.log("------>account issue activation", err));
+    try {
+      // Perform asynchronous operations
+      await updateUserStatus(userActualEmail);
+      const token = await getCache('token');
+
+      // Send both responses
+      res.status(200).send({ ok: true, message: "Email verified successfully", token:token });
+    } catch (error) {
+      console.error("Error occurred:", error);
+      res.status(500).json({ ok: false, message: "Internal server error" });
+    }
   });
   req.session.user = actual_email;
 };
 
 const forget_password = async (req, respond) => {
   const { toEmail } = req.body;
+  const token = await getCache('token');
   email_check(toEmail).then((res) => {
     if (res.length > 0) {
       try {
         const code_confirmation = generateVerificationCode();
-
         const mailOptions = {
           from: "no-reply@e-tafakna.com",
           to: toEmail,
@@ -229,11 +235,7 @@ const forget_password = async (req, respond) => {
         transporter.sendMail(mailOptions).then((info) => {
           // une fois el email teb3ath - yaani el code wsel , so it should be a sign to store the code of confirmation in the cache of the server , as email and it's code.
           storeVerificationCode(toEmail, code_confirmation);
-          // retrieveVerificationCode(toEmail)
-          // setTimeout(() => {
-          //   retrieveVerificationCode(toEmail);
-          // }, 50000);
-          respond.status(200).json({
+            respond.status(200).json({
             message: `Verification email sent: ${info.response}`,
             ok: true,
           });
@@ -252,23 +254,40 @@ const forget_password = async (req, respond) => {
 
 
 const verify_check_code_password = async (req, res) => {
-
   const { code } = req.body;
   const hashed_code = retrieveVerificationCode();
   if (!hashed_code) {
     res.status(403).json({ message: "Token expired", ok: false })
   } else {
     if (hashed_code !== code) {
-      console.log("*********************", hashed_code)
-      console.log("*********************", code)
-      console.log('-----------------CODE FALSE')
       res.status(404).json({ message: "Code does not match the code in email", ok: false })
     } else {
       res.status(200).json({ message: "Matching code", ok: true })
     }
   }
+};
 
-
+const updatePasswordController = async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+    try {
+      // Hash the new password
+      const hashedPassword = await bcrypt.hash(newPassword, 13);
+      // Update the user's password in the database
+      const result = await updatePasswordService(email, hashedPassword);
+      if (result) {
+        res.status(200).json({ message: "Password updated successfully", ok: true });
+      } else {
+        res.status(404).json({ message: "User not found", ok: false });
+      }
+    } catch (error) {
+      console.error("Error updating password:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  } catch (error) {
+    console.error("Error updating password:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 };
 
 
@@ -279,5 +298,6 @@ module.exports = {
   loginController,
   verify_email,
   forget_password,
-  verify_check_code_password
+  verify_check_code_password,
+  updatePasswordController
 };

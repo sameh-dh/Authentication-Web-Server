@@ -1,6 +1,5 @@
 var mysql = require("mysql2");
-const dotenv = require("dotenv");
-dotenv.config();
+require("dotenv").config();
 
 var connection = mysql.createPool({
   connectionLimit: process.env.CONNECTIONLIMIT || 100,
@@ -19,3 +18,5 @@ connection.getConnection((err, success) => {
   }
 });
 module.exports = connection;
+
+// NOTE :: to connect to database thru terminal ==> mysql -h containers-us-west-185.railway.app -P 6470 -u root -p    // password above   

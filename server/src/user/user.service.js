@@ -1,4 +1,6 @@
 const db = require("../../database-mysql/index");
+const bcrypt = require("bcryptjs");
+
 
 const addUserService = async (userData) => {
   return new Promise(async (resolve, reject) => {
@@ -114,7 +116,7 @@ const getUserByEmailAndPasswordService = async (email) => {
         if (results.length === 0) {
           resolve(null);
         } else {
-          resolve(results);
+          resolve(results[0]);
         }
       }
     });
@@ -172,6 +174,32 @@ const email_check = async (email) => {
   });
 }
 
+const updatePasswordService = async (email, hashedPassword) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const query = "UPDATE user SET password = ? WHERE email = ?";
+      db.query(query, [hashedPassword, email], (error, results) => {
+        if (error) {
+          console.error("Error executing database query:", error);
+          reject(error);
+        } else {
+          if (results.changedRows === 0) {
+            // No rows were affected, meaning the user with the provided email was not found
+            resolve(null);
+          } else {
+            // Password updated successfully
+            resolve(results);
+          }
+        }
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+
+
 module.exports = {
   addUserService,
   updateUserService,
@@ -181,5 +209,6 @@ module.exports = {
   getUserByEmailAndPasswordService,
   email_check,
   updateUserStatus,
-  checkUserStatus
+  checkUserStatus,
+  updatePasswordService
 };

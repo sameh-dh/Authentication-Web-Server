@@ -4,7 +4,7 @@
   "description": "You have 36 hours to produce something compelling using the skills you've honed over the past five weeks.",
   "main": "index.js",
   "scripts": {
-    "start": "nodemon server/index.js",
+    "start": "node server/index.js",
     "react-dev": "webpack --config ./webpack.config.js --mode development"
   },
   "repository": {
@@ -18,7 +18,7 @@
   },
   "homepage": "https://github.com/RBK-Tunisia/rbktn12-mvp-starter#readme",
   "dependencies": {
-    "bcrypt": "^5.1.0",
+    "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
@@ -30,7 +30,6 @@
     "mysql2": "^2.2.5",
     "node-cache": "^5.1.2",
     "nodemailer": "^6.9.4",
-    "nodemon": "^3.0.1",
     "request-ip": "^3.3.0"
   }
 }
