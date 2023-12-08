@@ -4,7 +4,8 @@ const {
   verify_email,
   forget_password,
   verify_check_code_password,
-  updatePasswordController
+  updatePasswordController,
+  loginWGController
 } = require("./authentication.controller");
 const limiter = require("../../../Providers/request_limiter");
 
@@ -15,6 +16,7 @@ const router = require("express").Router();
 
 router.post("/register", registerController);
 router.post("/login", loginController);
+router.post("/googleLogin", loginWGController);
 
 router.post("/verify_email", verify_email);
 

@@ -35,7 +35,26 @@ const addUserService = async (userData) => {
   });
 };
 
+// get user 
+const userInfo  = async (email ) => {
 
+  return new Promise(async (resolve, reject) => {
+    const query = "select * from user where email =?";
+    db.query(query, [email], (error, results) => {
+      if (error) {
+        reject(error);
+      } else {
+        if (results.changedRows === 0) {
+          resolve(null);
+        } else {
+          console.log(results);
+          resolve(results);
+          return results;
+        }
+      }
+    });
+  });
+}
 const updateUserService = async (idUser, fieldsToUpdate) => {
   return new Promise(async (resolve, reject) => {
     const query = "UPDATE user SET ? WHERE idUser = ?";
@@ -55,7 +74,7 @@ const updateUserService = async (idUser, fieldsToUpdate) => {
 
 const updateUserStatus = async (email_user) => {
   return new Promise(async (resolve, reject) => {
-    const query = "UPDATE user SET status='activated' WHERE email = ?";
+    const query = "UPDATE user SET status='activated' WHERE email =? ";
     db.query(query, [email_user], (error, results) => {
       if (error) {
         reject(error);
@@ -72,6 +91,7 @@ const updateUserStatus = async (email_user) => {
 
 
 const checkUserStatus = async (email_user) => {
+  console.log(email_user)
   return new Promise(async (resolve, reject) => {
     const query = "SELECT email FROM user WHERE email=? AND status='activated'";
     db.query(query, [email_user], (error, results) => {
@@ -81,6 +101,7 @@ const checkUserStatus = async (email_user) => {
         if (results.affectedRows === 0) {
           resolve(null);
         } else {
+          console.log(results)
           resolve(results);
         }
       }
@@ -210,5 +231,6 @@ module.exports = {
   email_check,
   updateUserStatus,
   checkUserStatus,
-  updatePasswordService
+  updatePasswordService,
+  userInfo
 };

@@ -4,7 +4,7 @@
     <html lang="en-US">
       <head>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type" />
-        <title>E-Tafakna Reset password</title>
+        <title>w Reset password</title>
         <meta name="description" content="Reset Password Email Template." />
         <style type="text/css">
           a:hover {

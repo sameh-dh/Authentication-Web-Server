@@ -4,8 +4,10 @@ const {
   email_check,
   updateUserStatus,
   checkUserStatus,
-  updatePasswordService
+  updatePasswordService,
 } = require("../user/user.service");
+
+const { OAuth2Client } = require("google-auth-library");
 
 const { generateToken } = require("./authentication.service");
 
@@ -24,7 +26,103 @@ const {
   retrieveVerificationCode,
 } = require("../../../Providers/store_in_cache");
 
-const {setCache , getCache} = require ('../../../Providers/setCache');
+const { setCache, getCache } = require("../../../Providers/setCache");
+
+const loginWGController = async (req, res) => {
+  try {
+    const { googleToken } = req.body;
+
+    const YOUR_GOOGLE_CLIENT_ID =
+      "992642187010-r9ken3t1skjsbp3adrel4lal14725b97.apps.googleusercontent.com";
+    const client = new OAuth2Client(YOUR_GOOGLE_CLIENT_ID);
+
+    // Function to verify the Google token
+    const verifyGoogleToken = async (idToken) => {
+      try {
+        const ticket = await client.verifyIdToken({
+          idToken,
+          audience: YOUR_GOOGLE_CLIENT_ID,
+        });
+
+        const payload = ticket.getPayload();
+        return payload;
+      } catch (error) {
+        console.error("Error verifying Google token:", error);
+        throw error;
+      }
+    };
+
+    // Verify and decode the Google token
+    const decodedPayload = await verifyGoogleToken(googleToken);
+    const existingUser = await getUserByEmailAndPasswordService(
+      decodedPayload.email
+    );
+
+    if (existingUser) {
+      // User exists, log in the user or perform any other actions
+      const token = generateToken(
+        {
+          id: existingUser.idUser,
+          email: existingUser.email,
+        },
+        "1d"
+      );
+      setCache("token", token);
+      res
+        .status(200)
+        .json({ success: true, message: "User logged in successfully", token });
+    } else {
+      // Generate a random password
+      const generateRandomPassword = () => {
+        const length = 10;
+        const charset =
+          "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        let password = "";
+        for (let i = 0; i < length; i++) {
+          const randomIndex = Math.floor(Math.random() * charset.length);
+          password += charset.charAt(randomIndex);
+        }
+        return password;
+      };
+      const password = generateRandomPassword();
+      const { email, name, family_name, picture } = decodedPayload;
+      // Hash the password
+      const hashedPassword = await bcrypt.hash(password, 13);
+      // Perform your registration logic here
+      const result = await addUserService({
+        email,
+        password: hashedPassword,
+        name : decodedPayload.family_name,
+        surname: decodedPayload.given_name,
+        photo_user: decodedPayload.picture,
+    
+      });
+      // After registration, you can generate a JWT token and send it as a response
+      const token = generateToken(
+        {
+          id: result.insertId,
+          email,
+        },
+        "1d"
+      );
+      res
+        .status(200)
+        .json({
+          success: true,
+          message: "User registered successfully",
+          token,
+        });
+    }
+  } catch (error) {
+    console.error("Error handling Google token:", error);
+    res
+      .status(400)
+      .json({
+        success: false,
+        message: "Invalid Google token. Please try again.",
+      });
+  }
+};
 
 const registerController = async (req, res) => {
   try {
@@ -87,7 +185,7 @@ const registerController = async (req, res) => {
             },
             "1d"
           );
-          setCache('token',token);
+          setCache("token", token);
         } catch (error) {
           res.send({ error: error?.message ? error.message : error });
         }
@@ -107,23 +205,30 @@ const loginController = async (req, res) => {
         .status(404)
         .json({ message: "User not found.", ok: false, error: "email" });
     } else {
+      //check password
       bcrypt.compare(
         password,
-        hashpassword[0].password,
+        hashpassword.password,
         async function (err, result) {
           if (result) {
             try {
-              const result = await checkUserStatus(email)
+              const result = await checkUserStatus(email);
+                //  res.json(result)
               if (result.length) {
-                // console.log(result)
-                const token = generateToken({
-                  id: hashpassword[0].idUser,
-                  email: hashpassword[0].email,
-                }, "1d");
-                const refreshtoken = generateToken({
-                  id: hashpassword[0].idUser,
-                  email: hashpassword[0].email,
-                }, "1d");
+                const token = generateToken(
+                  {
+                    id: hashpassword.idUser,
+                    email: hashpassword.email,
+                  },
+                  "1d"
+                );
+                const refreshtoken = generateToken(
+                  {
+                    id: hashpassword.idUser,
+                    email: hashpassword.email,
+                  },
+                  "1d"
+                );
                 res
                   .status(200)
                   .cookie("refreshtoken", refreshtoken, {
@@ -147,7 +252,7 @@ const loginController = async (req, res) => {
                 });
               }
             } catch (err) {
-              console.error(err)
+              console.error(err);
             }
           } else {
             res.status(200).json({
@@ -166,9 +271,13 @@ const loginController = async (req, res) => {
 
 const sending_verif_email = async (toEmail) => {
   try {
-    const token = jwt.sign({ email: toEmail }, "f34f714b45834e9586924c764354e1235f6789ab0cd1ef20314567890abcdef", {
-      expiresIn: "15m",
-    });
+    const token = jwt.sign(
+      { email: toEmail },
+      "f34f714b45834e9586924c764354e1235f6789ab0cd1ef20314567890abcdef",
+      {
+        expiresIn: "15m",
+      }
+    );
 
     const verificationLink = `http://localhost:5173/signIn/verify?token=${token}`;
 
@@ -189,38 +298,48 @@ const sending_verif_email = async (toEmail) => {
 const verify_email = async (req, res) => {
   const { token } = req.query;
   const { actual_email } = req.body;
-  jwt.verify(token, "f34f714b45834e9586924c764354e1235f6789ab0cd1ef20314567890abcdef", async (err, decoded) => {
-    if (err) {
-      console.error(`JWT verification failed: ${err.message}`);
-      return res
-        .status(400)
-        .json({ ok: false, message: "Invalid or expired token" });
-    }
-    const userEmailFromToken = decoded.email;
-    const userActualEmail = actual_email;
+  jwt.verify(
+    token,
+    "f34f714b45834e9586924c764354e1235f6789ab0cd1ef20314567890abcdef",
+    async (err, decoded) => {
+      if (err) {
+        console.error(`JWT verification failed: ${err.message}`);
+        return res
+          .status(400)
+          .json({ ok: false, message: "Invalid or expired token" });
+      }
+      const userEmailFromToken = decoded.email;
+      const userActualEmail = actual_email;
 
-    if (userEmailFromToken !== userActualEmail) {
-      console.error("Email in token does not match the user's actual email");
-      return res.status(400).json({ ok: false, message: "Email mismatch" });
-    }
-    try {
-      // Perform asynchronous operations
-      await updateUserStatus(userActualEmail);
-      const token = await getCache('token');
+      if (userEmailFromToken !== userActualEmail) {
+        console.error("Email in token does not match the user's actual email");
+        return res.status(400).json({ ok: false, message: "Email mismatch" });
+      }
+      try {
+        // Perform asynchronous operations
+        await updateUserStatus(userActualEmail);
+        const token = await getCache("token");
 
-      // Send both responses
-      res.status(200).send({ ok: true, message: "Email verified successfully", token:token });
-    } catch (error) {
-      console.error("Error occurred:", error);
-      res.status(500).json({ ok: false, message: "Internal server error" });
+        // Send both responses
+        res
+          .status(200)
+          .send({
+            ok: true,
+            message: "Email verified successfully",
+            token: token,
+          });
+      } catch (error) {
+        console.error("Error occurred:", error);
+        res.status(500).json({ ok: false, message: "Internal server error" });
+      }
     }
-  });
+  );
   req.session.user = actual_email;
 };
 
 const forget_password = async (req, respond) => {
   const { toEmail } = req.body;
-  const token = await getCache('token');
+  const token = await getCache("token");
   email_check(toEmail).then((res) => {
     if (res.length > 0) {
       try {
@@ -235,7 +354,7 @@ const forget_password = async (req, respond) => {
         transporter.sendMail(mailOptions).then((info) => {
           // une fois el email teb3ath - yaani el code wsel , so it should be a sign to store the code of confirmation in the cache of the server , as email and it's code.
           storeVerificationCode(toEmail, code_confirmation);
-            respond.status(200).json({
+          respond.status(200).json({
             message: `Verification email sent: ${info.response}`,
             ok: true,
           });
@@ -252,17 +371,18 @@ const forget_password = async (req, respond) => {
   });
 };
 
-
 const verify_check_code_password = async (req, res) => {
   const { code } = req.body;
   const hashed_code = retrieveVerificationCode();
   if (!hashed_code) {
-    res.status(403).json({ message: "Token expired", ok: false })
+    res.status(403).json({ message: "Token expired", ok: false });
   } else {
     if (hashed_code !== code) {
-      res.status(404).json({ message: "Code does not match the code in email", ok: false })
+      res
+        .status(404)
+        .json({ message: "Code does not match the code in email", ok: false });
     } else {
-      res.status(200).json({ message: "Matching code", ok: true })
+      res.status(200).json({ message: "Matching code", ok: true });
     }
   }
 };
@@ -276,7 +396,9 @@ const updatePasswordController = async (req, res) => {
       // Update the user's password in the database
       const result = await updatePasswordService(email, hashedPassword);
       if (result) {
-        res.status(200).json({ message: "Password updated successfully", ok: true });
+        res
+          .status(200)
+          .json({ message: "Password updated successfully", ok: true });
       } else {
         res.status(404).json({ message: "User not found", ok: false });
       }
@@ -290,14 +412,12 @@ const updatePasswordController = async (req, res) => {
   }
 };
 
-
-
-
 module.exports = {
   registerController,
   loginController,
   verify_email,
   forget_password,
   verify_check_code_password,
-  updatePasswordController
+  updatePasswordController,
+  loginWGController,
 };

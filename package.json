@@ -26,6 +26,7 @@
     "express": "^4.17.1",
     "express-rate-limit": "^6.11.0",
     "express-session": "^1.17.3",
+    "google-auth-library": "^9.2.0",
     "jsonwebtoken": "^9.0.1",
     "mysql2": "^2.2.5",
     "node-cache": "^5.1.2",
